@@ -18,22 +18,21 @@ import matplotlib.patches as mpatches
 
 
 
+def monte_carlo_plot(files):
 
-N = 100000
-short_P = 0.1
-long_P = 62.0
-pd = linspace(short_P, long_P, float(N))
-f = (2.0*pi)/pd
-p0 = zeros(N)
-for i in range (N):
-    p0[i] = log10((2.0*pi)/f[i])
-    
-for root, dirs, files in walk("/Users/Leo/Desktop/test"):
-    for file in files:
-        if file.endswith("sysrem.txt"):
+    N = 100000
+    short_P = 0.1
+    long_P = 62.0
+    pd = linspace(short_P, long_P, float(N))
+    f = (2.0*pi)/pd
+    p0 = log10(2*pi/f)
+
+    for filename in files:
+        if filename.endswith("sysrem.txt"):
             periods = 31.5 * random.random_sample((500, 1)) + 0.1
-            file00 = open(str(root)+'/'+str(file), 'r')
-            time, mag, error, ra, dec, flag = loadtxt(file00, dtype='float',delimiter=' ', usecols=(0,1,2,3,4,7), unpack=True)
+            file00 = open(filename, 'r')
+            time, mag, error, ra, dec, flag = loadtxt(file00, dtype='float',delimiter=' ', 
+                                                      usecols=(0,1,2,3,4,7), unpack=True)
             inputLC00 = zip(time[0:], mag[0:], error[0:], ra[0:], dec[0:], flag[0:])
             inputLC01 = [[time,mag,error,ra,dec,flag] for (time,mag,error,ra,dec,flag) in inputLC00 if \
 			((error != 0.) and (ra != 0.) and (dec != 0.) and (flag == 0.))]
@@ -68,19 +67,27 @@ for root, dirs, files in walk("/Users/Leo/Desktop/test"):
                         
                         if max(pgram_g) > 0.6:
                             plt.plot(periods[j], newperiod, marker='D', c='black', markersize=0.5, fillstyle='none')
-      
-      
-      
 
-ax = plt.gca()
-ax.set_xscale('log')
-ax.set_yscale('log')
-ax.set_xlim([0.1,32.0])
-ax.set_ylim([0.1,32.0])
-plt.xlabel('Injected P_rot (days)')
-plt.ylabel('Recovered P_rot (days)')
-red_patch = mpatches.Patch(color='lightcoral', label='0.2 < power < 0.3')
-yellow_patch = mpatches.Patch(color='khaki', label='unique = 1 & 0.3 < power < 0.6')
-black_patch = mpatches.Patch(color='black', label='unique = 1 & power > 0.6')
-plt.legend(handles=[black_patch, yellow_patch, red_patch])    
-plt.savefig("/Users/Leo/Desktop/Result 2.eps")
+        break      
+
+    ax = plt.gca()
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlim([0.1,32.0])
+    ax.set_ylim([0.1,32.0])
+    plt.xlabel('Injected P_rot (days)')
+    plt.ylabel('Recovered P_rot (days)')
+    red_patch = mpatches.Patch(color='lightcoral', label='0.2 < power < 0.3')
+    yellow_patch = mpatches.Patch(color='khaki', label='unique = 1 & 0.3 < power < 0.6')
+    black_patch = mpatches.Patch(color='black', label='unique = 1 & power > 0.6')
+    plt.legend(handles=[black_patch, yellow_patch, red_patch])    
+    plt.savefig("result2.eps",bbox_inches="tight")
+
+if __name__=="__main__":
+
+    if len(sys.argv)==1:
+        print("Please provide a list of light curve files")
+    else:
+        listfile = at.read(sys.argv[1])
+        file_list = listfile["filename"]
+        monte_carlo_plot(file_list)
