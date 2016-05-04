@@ -206,7 +206,9 @@ def monte_carlo_injections(files):
                             unique10 = unique10 + 1
                             if ((abs(newperiod - periods[j]))/periods[j]) <= 0.03:
                                 unique10count = unique10count + 1
-        break
+
+#        # when testing, only run the first object
+#        break
                         
     print count, unique, uniquecount
 
