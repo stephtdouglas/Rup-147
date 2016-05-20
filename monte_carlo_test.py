@@ -30,7 +30,7 @@ def monte_carlo_injections(files):
     p0 = np.log10(pd)
 
 
-    for filename in files:
+    for fcount,filename in enumerate(files):
         logging.info(filename)
         if filename.endswith("sysrem.txt"):
 
@@ -39,7 +39,7 @@ def monte_carlo_injections(files):
             max_power = []
             unique = []
 
-            periods = 31.5 * random.random_sample(500,) + 0.1
+            periods = 31.5 * random.random_sample(50) + 0.1
             new = np.array(periods).tolist()
 
             injected_period = injected_period + new * 5
@@ -75,6 +75,7 @@ def monte_carlo_injections(files):
                     # for m in range(0, len(pgram_g)):
                     #     if pgram_g[m] < max(pgram_g):
                     #         newpgram_g[m] = pgram_g[m]
+                    print(len(keep),len(np.where(newpgram_g>0)[0]),np.where(keep==False)[0])
 
                     if max(newpgram_g) <= 0.6 * max(pgram_g):
                         unique = unique + [1]
@@ -88,7 +89,9 @@ def monte_carlo_injections(files):
 
             names = ["injected_period", "new_period", "max_power", "unique"]
 
-            at.write(data,"/Users/Leo/Desktop/Result/"+str(filename)[0:19]+".csv",names=names,delimiter=" ")
+            at.write(data,str(filename)[:-4]+".injections.csv",names=names,delimiter=",")
+            if fcount>=10:
+                break
 
 
 if __name__=="__main__":
