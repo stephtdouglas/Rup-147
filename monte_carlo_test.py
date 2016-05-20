@@ -19,6 +19,75 @@ import matplotlib.patches as mpatches
 
 logging.basicConfig(level=logging.DEBUG)
 
+def test_pgram(periods, powers, threshold, n_aliases, alias_with):
+    """ID the most likely period and aliases.
+
+    Adapted from k2spin by Stephanie Douglas and Kevin Covey
+
+    Inputs
+    ------
+    periods, powers: array-like
+    threshold: float
+    n_aliases: int
+    alias_with: float
+        aliases to search for. Defaults to 0.25 days (6 hrs), the time
+        between K2 thruster fires
+    Outputs
+    -------
+    best_period: float
+    best_power: float
+    aliases: array
+    is_clean: bool
+    """
+    logging.debug("Eval %d aliases with threshold %f",n_aliases, threshold)
+
+    # Find the most likely period
+    fund_loc = np.argmax(abs(powers))
+    fund_period = periods[fund_loc]
+    fund_power = powers[fund_loc]
+
+    logging.debug("Fundamental %d Prot=%f Power=%f", fund_loc, fund_period,
+                  fund_power)
+
+    # and aliases
+    for_aliases = np.arange(1.0, n_aliases+1.0) / alias_with
+    inverse_fundamental = 1. / fund_period
+    pos_aliases = 1. / (inverse_fundamental + for_aliases)
+    neg_aliases = 1. / abs(inverse_fundamental - for_aliases)
+
+    aliases = np.append(pos_aliases, neg_aliases)
+    tot_aliases = len(aliases)
+
+#    logging.debug("Aliases: {}".format(aliases))
+
+    # Clip the best peak out of the periodogram
+    to_clip = np.where(abs(periods - fund_period)<=fund_5percent)[0]
+    #logging.debug(periods[to_clip])
+
+    # Now clip out aliases
+    for i, alias in enumerate(aliases):
+        to_clip = np.union1d(to_clip,
+                             np.where(abs(periods - alias)<=(0.02*alias))[0])
+
+    clipped_periods = np.delete(periods, to_clip)
+    clipped_powers = np.delete(powers, to_clip)
+
+
+    # Find the maximum of the clipped periodogram
+    clipped_max = np.argmax(clipped_powers)
+    max_clip_power = clipped_powers[clipped_max]
+    max_clip_period = clipped_periods[clipped_max]
+
+    # Set clean = True if max of clipped periodogram < threshold*best_power
+    if max_clip_power < (threshold * fund_power):
+        is_clean = True
+    else:
+        is_clean = False
+        logging.debug("Max clipped power = %f", max_clip_power)
+
+    # Return best_period, best_power, aliases, is_clean
+    return is_clean
+
 def monte_carlo_injections(files):
 
     N = 100000
@@ -69,17 +138,11 @@ def monte_carlo_injections(files):
                     newperiod = newperiod + [pd[max_loc]]
                     max_power = max_power + [pgram_g[max_loc]]
 
-                    newpgram_g = np.zeros(N)
-                    keep = np.where(pgram_g<max(pgram_g))[0]
-                    newpgram_g[keep] = pgram_g[keep]
-                    # for m in range(0, len(pgram_g)):
-                    #     if pgram_g[m] < max(pgram_g):
-                    #         newpgram_g[m] = pgram_g[m]
-                    print(len(keep),len(np.where(newpgram_g>0)[0]),np.where(keep==False)[0])
+                    is_clean = test_pgram(pd, pgram_g, threshold=0.6, n_aliases=3, alias_with=1.0)
 
-                    if max(newpgram_g) <= 0.6 * max(pgram_g):
+                    if is_clean is True:
                         unique = unique + [1]
-                    elif max(newpgram_g) > 0.6 * max(pgram_g):
+                    else:
                         unique = unique + [0]
 
             data = {"injected_period": injected_period,
