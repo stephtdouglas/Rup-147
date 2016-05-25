@@ -3,6 +3,8 @@ import logging
 from os import walk
 from numpy import loadtxt, zeros, random, mean, std, linspace, argmax, percentile
 
+import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 from astroML.time_series import lomb_scargle, lomb_scargle_bootstrap
@@ -26,7 +28,7 @@ def monte_carlo_figure2(files):
         logging.info(filename)
         if filename.endswith(".csv"):
 
-            tbl = at.read(str(root)+'/'+str(file))
+            tbl = at.read(filename)
             unique = tbl["unique"]
             injected_period = tbl["injected_period"]
             new_period = tbl["new_period"]
@@ -40,6 +42,8 @@ def monte_carlo_figure2(files):
                         plt.plot(injected_period[i], new_period[i], marker='D', c='khaki', markersize=0.5, fillstyle='none')
                     if max_power[i] > 0.6:
                         plt.plot(injected_period[i], new_period[i], marker='D', c='black', markersize=0.5, fillstyle='none')
+
+            del(tbl)
 
     ax = plt.gca()
     ax.set_xscale('log')
