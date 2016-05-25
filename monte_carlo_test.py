@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import logging
 from os import walk
 from numpy import loadtxt, zeros, random, mean, std, linspace, argmax, percentile
@@ -59,15 +59,17 @@ def test_pgram(periods, powers, threshold, n_aliases, alias_with):
     tot_aliases = len(aliases)
 
 #    logging.debug("Aliases: {}".format(aliases))
+    fund_2percent = 0.02 * fund_period
 
     # Clip the best peak out of the periodogram
-    to_clip = np.where(abs(periods - fund_period)<=fund_5percent)[0]
+    to_clip = np.where(abs(periods - fund_period)<=fund_2percent)[0]
     #logging.debug(periods[to_clip])
 
     # Now clip out aliases
     for i, alias in enumerate(aliases):
+        alias_2percent = 0.02 * alias
         to_clip = np.union1d(to_clip,
-                             np.where(abs(periods - alias)<=(0.02*alias))[0])
+                             np.where(abs(periods - alias)<=alias_2percent)[0])
 
     clipped_periods = np.delete(periods, to_clip)
     clipped_powers = np.delete(powers, to_clip)
@@ -108,10 +110,12 @@ def monte_carlo_injections(files):
             max_power = []
             unique = []
 
-            periods = 31.5 * random.random_sample(50) + 0.1
+
+            n_periods = 500
+            periods = 31.5 * random.random_sample(n_periods) + 0.1
             new = np.array(periods).tolist()
 
-            injected_period = injected_period + new * 5
+            injected_period = np.array(injected_period + new * 5)
 
             file00 = open(filename, 'r')
             time, mag, error, ra, dec, flag = loadtxt(file00, dtype='float',delimiter=' ',
@@ -119,17 +123,28 @@ def monte_carlo_injections(files):
             inputLC00 = zip(time[0:], mag[0:], error[0:], ra[0:], dec[0:], flag[0:])
             inputLC01 = [[time,mag,error,ra,dec,flag] for (time,mag,error,ra,dec,flag) in inputLC00 if \
 			((error != 0.) and (ra != 0.) and (dec != 0.) and (flag == 0.))]
-	    std01 = std([item[1] for item in inputLC01])
-	    amplitude = [std01*0.3, std01*0.6, std01*0.9, std01*1.2, std01*1.5]
-	    time = [item[0] for item in inputLC01]
-	    mag = [item[1] for item in inputLC01]
-	    error = [item[2] for item in inputLC01]
+#	    std01 = std([item[1] for item in inputLC01])
+#	    amplitude = np.array([std01*0.3, std01*0.6, std01*0.9, std01*1.2, std01*1.5])
+	    time = np.array([item[0] for item in inputLC01])
+	    mag = np.array([item[1] for item in inputLC01])
+	    error = np.array([item[2] for item in inputLC01])
+	    std01 = np.std(mag[np.isfinite(mag)==True])
+	    amplitude = np.array([std01*0.3, std01*0.6, std01*0.9, std01*1.2, std01*1.5])
+            n_amplitudes = len(amplitude)
 
+            injected_amplitudes = np.zeros(n_periods*5)
+
+            all_count = 0
 	    for i in range(0, len(amplitude)):
-	        for j in range(0, len(periods)):
-                    logging.debug("%d %0.3f %d %0.3f",i,amplitude[i],j,periods[j])
-	            sinusoid = [amplitude[i] * sin(2*pi*(x-time[0])/periods[j]) for x in time]
-	            newmag = [a+b for a,b in zip(mag, sinusoid)]
+	        for j in range(0, n_periods):
+                    logging.info("%d %0.3f %d %0.3f",i,amplitude[i],j,periods[j])
+                    injected_amplitudes[all_count] = amplitude[i]
+                    logging.debug("%d %0.3f",all_count,injected_period[all_count])
+#	            sinusoid = [amplitude[i] * sin(2*pi*(x-time[0])/periods[j]) for x in time]
+#	            newmag = [a+b for a,b in zip(mag, sinusoid)]
+                    #print(type(time),np.shape(time),time.dtype)
+	            sinusoid = amplitude[i] * np.sin(2*pi*(time-time[0])/periods[j])
+	            newmag = mag+sinusoid
 
                     pgram_g = lomb_scargle(time, newmag, error, f, generalized = True)
 
@@ -145,16 +160,20 @@ def monte_carlo_injections(files):
                     else:
                         unique = unique + [0]
 
-            data = {"injected_period": injected_period,
+                    all_count += 1
+
+            data = {"injected_amplitude": injected_amplitudes,
+                    "injected_period": injected_period,
                     "new_period": newperiod,
                     "max_power": max_power,
                     "unique": unique}
 
-            names = ["injected_period", "new_period", "max_power", "unique"]
+            names = ["injected_amplitude","injected_period", "new_period", "max_power", "unique"]
 
             at.write(data,str(filename)[:-4]+".injections.csv",names=names,delimiter=",")
-            if fcount>=10:
-                break
+
+#            if fcount>=0:
+#                break
 
 
 if __name__=="__main__":
@@ -164,4 +183,21 @@ if __name__=="__main__":
     else:
         listfile = at.read(sys.argv[1])
         file_list = listfile["filename"]
-        monte_carlo_injections(file_list)
+
+    # Break down the data set into subsets for parallel processing
+    arrayid = int(os.getenv("PBS_ARRAYID",0))
+
+    arr_stride = 8
+    mini = (arrayid - 1) * arr_stride
+    maxi = min(mini + arr_stride, len(file_list))
+    if arrayid==0:
+        mini = 0
+        maxi = len(file_list)
+
+    print("Array, min(i), max(i)")
+    print(arrayid, mini, maxi)
+
+    sub_list = file_list[mini:maxi]
+    print(sub_list)
+
+    monte_carlo_injections(sub_list)
