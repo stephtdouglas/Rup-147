@@ -4,6 +4,8 @@ import logging
 from os import walk
 from numpy import loadtxt, zeros, random, mean, std, linspace, argmax, percentile
 
+import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 from astroML.time_series import lomb_scargle, lomb_scargle_bootstrap

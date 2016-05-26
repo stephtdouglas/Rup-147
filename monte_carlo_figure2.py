@@ -3,6 +3,8 @@ import logging
 from os import walk
 from numpy import loadtxt, zeros, random, mean, std, linspace, argmax, percentile
 
+import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 from astroML.time_series import lomb_scargle, lomb_scargle_bootstrap
@@ -21,12 +23,15 @@ import astropy.io.ascii as at
 logging.basicConfig(level=logging.DEBUG)  
 
 def monte_carlo_figure2(files):
-    
-    for filename in files:
+
+    plt.figure()
+    ax = plt.subplot(111)
+
+    for fcount, filename in enumerate(files):
         logging.info(filename)
         if filename.endswith(".csv"):
-            
-            tbl = at.read(str(root)+'/'+str(file))
+
+            tbl = at.read(filename)
             unique = tbl["unique"]
             injected_period = tbl["injected_period"]
             new_period = tbl["new_period"]
@@ -41,7 +46,6 @@ def monte_carlo_figure2(files):
             c = np.where((unique == 1) & (max_power > 0.6))[0]
             plt.scatter(injected_period[c], new_period[c], marker='D', color='black', s=0.5)        
                                   
-    ax = plt.gca()
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlim([0.1,32.0])
@@ -52,7 +56,7 @@ def monte_carlo_figure2(files):
     yellow_patch = mpatches.Patch(color='khaki', label='unique = 1 & 0.3 < power < 0.6')
     black_patch = mpatches.Patch(color='black', label='unique = 1 & power > 0.6')
     plt.legend(handles=[black_patch, yellow_patch, red_patch], loc=2)    
-    plt.savefig("/Users/Leo/Desktop/Figure 2.eps")
+    plt.savefig("Figure2.eps")
     
     
     
