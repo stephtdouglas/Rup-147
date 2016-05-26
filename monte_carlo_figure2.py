@@ -24,7 +24,10 @@ logging.basicConfig(level=logging.DEBUG)
 
 def monte_carlo_figure2(files):
 
-    for filename in files:
+    plt.figure()
+    ax = plt.subplot(111)
+
+    for fcount, filename in enumerate(files):
         logging.info(filename)
         if filename.endswith(".csv"):
 
@@ -44,8 +47,9 @@ def monte_carlo_figure2(files):
                         plt.plot(injected_period[i], new_period[i], marker='D', c='black', markersize=0.5, fillstyle='none')
 
             del(tbl)
+            if fcount>=9:
+                break
 
-    ax = plt.gca()
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlim([0.1,32.0])
